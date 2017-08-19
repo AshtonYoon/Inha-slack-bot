@@ -2,6 +2,10 @@ var Botkit = require('botkit');
 const client = require('./request/httpClient');
 const database = require('./database');
 const Product = require('./database/model/product');
+
+const regex = initialCommand();
+const regexTest = require('./regexes/regex');
+
 var controller = Botkit.slackbot();
 
 const log = {};
@@ -54,9 +58,16 @@ controller.hears(["더", "더 보여줘"], ["direct_message", "direct_mention", 
         .catch(onError);
 });
 
-controller.hears(['보여줘', '.+\s{0,10} 보여줘'], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+controller.hears(['보여줘', regex], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+    const token = regexTest.getTokens(message.text, regex);
+    if (token === null) return bot.reply(message, '명령어를 잘못 입력하셨어요!');
 
-    const keyword = message.text.substring(0, message.text.length - 3);
+    const keyword = token.keyword;
+    var orderBy;
+    ['asc', 'date', 'dsc', 'sim'].forEach(function (element) {
+        console.log(require('./config/' + element + '.config').values);
+        if (require('./config/' + element + '.config').values.includes(token.orderBy)) orderBy = element;
+    });
 
     const encoded = encodeURI(keyword);
 
@@ -69,14 +80,14 @@ controller.hears(['보여줘', '.+\s{0,10} 보여줘'], ["direct_message", "dire
         log[message.user] = {
             "keyword": keyword,
             "index": 1,
-            "orderBy": 'sim' // 나중에 유동적으로 바뀌어야함
+            "orderBy": orderBy // 나중에 유동적으로 바뀌어야함
         }
     }
     const onError = (err) => {
         bot.reply(message, err.message);
     }
 
-    shoppingSearch(encoded, 1, 3, 'sim')
+    shoppingSearch(encoded, 1, 3, orderBy)
         .then(onRespond)
         .then(logging)
         .catch(onError);
@@ -94,7 +105,6 @@ controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["dir
 
     const keyword = past.keyword;
     const orderBy = past.orderBy;
-
     const encoded = encodeURI(keyword);
 
     shoppingSearch(encoded, index, 1, orderBy)
@@ -124,7 +134,24 @@ controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["dir
         })
 });
 
+controller.hears(["항목 삭제", /^\d+\s항목\s삭제+/mg], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+    const index = Number(message.text.split(" ")[0]);
 
+    if (isNaN(index)) return bot.reply(message, '수작부리지 마라');
+
+    Product.findAll()
+        .then((products) => {
+            return Product.findByIdAndRemove({
+                "_id": products[index - 1]._id
+            }).exec();
+        })
+        .then((product) => {
+            bot.reply(message, index + ". " + product.productName + " 항목이 삭제되었습니다.");
+        })
+        .catch((err) => {
+            bot.reply(message, '오류 발생 삐용삐용~!!');
+        });
+})
 controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
     Product.findAll()
         .then((products) => {
@@ -137,7 +164,7 @@ controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention
                     "fallback": "Required plain-text summary of the attachment.",
                     "color": getRandomColor(),
                     "author_icon": "http://flickr.com/icons/bobby.jpg",
-                    "title": products[i].productName,
+                    "title": (i + 1) + ". " + products[i].productName,
                     "title_link": products[i].productLink,
                     "fields": [{
                         "title": products[i].price,
@@ -209,3 +236,23 @@ function shoppingSearch(keyword, startIndex, display, orderBy) {
 /*
 원태형 죄송해요.. 구현해야한다는 압박감에 못이겨 그만..
 */
+
+function initialCommand() {
+    var commands = require('./config/asc.config').values;
+    commands = commands.concat(require('./config/dsc.config').values);
+    commands = commands.concat(require('./config/sim.config').values);
+    commands = commands.concat(require('./config/date.config').values);
+
+    var regex = '(.{0,10})(';
+    commands.forEach(function (element) {
+        regex += element + '|';
+    }, this);
+    regex = regex.slice(0, -1);
+    regex += ')\\s(.{0,10})(보여줘)';
+    regex = new RegExp(regex);
+    return regex
+    // // 사용 예
+    // const testRegex = require('./regexes/regex');
+
+    // return testRegex.getTokens('싼순서로 김치 보여줘', c);
+}
