@@ -27,7 +27,7 @@ bot.startRTM(function (err, bot, payload) {
     database.connect();
 });
 
-controller.hears(["더", "더 보여줘"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+controller.hears(["더", "더 보여줘"], ["direct_message", "direct_mention", "mention"], function (bot, message) {
     if (typeof log[message.user] === "undefined") return bot.reply(message, '니가 뭘 검색했는데;;');
 
     const index = log[message.user].index;
@@ -58,7 +58,7 @@ controller.hears(["더", "더 보여줘"], ["direct_message", "direct_mention", 
         .catch(onError);
 });
 
-controller.hears(['보여줘', regex], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+controller.hears(['보여줘', regex], ["direct_message", "direct_mention", "mention"], function (bot, message) {
     const token = regexTest.getTokens(message.text, regex);
     if (token === null) return bot.reply(message, '명령어를 잘못 입력하셨어요!');
 
@@ -94,7 +94,7 @@ controller.hears(['보여줘', regex], ["direct_message", "direct_mention", "men
 
 });
 
-controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["direct_message", "direct_mention", "mention"], function (bot, message) {
     const index = Number(message.text.split(" ")[0]);
 
     if (isNaN(index)) return bot.reply(message, '수작부리지 마라');
@@ -134,7 +134,7 @@ controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["dir
         })
 });
 
-controller.hears(["항목 삭제", /^\d+\s항목\s삭제+/mg], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+controller.hears(["항목 삭제", /^\d+\s항목\s삭제+/mg], ["direct_message", "direct_mention", "mention"], function (bot, message) {
     const index = Number(message.text.split(" ")[0]);
 
     if (isNaN(index)) return bot.reply(message, '수작부리지 마라');
@@ -152,8 +152,9 @@ controller.hears(["항목 삭제", /^\d+\s항목\s삭제+/mg], ["direct_message"
         .catch((err) => {
             bot.reply(message, err.message);
         });
-})
-controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+});
+
+controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention"], function (bot, message) {
     Product.findAll()
         .then((products) => {
             const resMessage = {
@@ -163,6 +164,7 @@ controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention
             if (products.length === 0) return bot.reply(message, '장바구니가 비었습니다!!');
             for (let i = 0; i < products.length; i++) {
                 const item = {
+                    "text": `${products[i].adderName}님이 추가함`,
                     "fallback": "Required plain-text summary of the attachment.",
                     "color": getRandomColor(),
                     "author_icon": "http://flickr.com/icons/bobby.jpg",
@@ -178,7 +180,7 @@ controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention
                 }
                 const lprice = Number(products[i].price.replace(/\,/g, '').split('원 ~ ')[0]);
                 const hprice = Number(products[i].price.replace(/\,/g, '').split('원 ~ ')[1].split('원')[0]);
-                
+
                 totals[0] += lprice;
                 totals[1] += (lprice + hprice) / 2.0;
                 totals[2] += hprice;
@@ -198,7 +200,77 @@ controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention
         })
 });
 
+controller.hears(["구매완료", /^\d+\s구매완료$/mg], ["direct_message", "direct_mention", "mention"], function (bot, message) {
+    const index = Number(message.text.split(' ')[0]);
 
+    if (isNaN(index)) return bot.reply(message, '명령어를 잘못 입력하셨습니다.');
+    var productName;
+    Product.findAll()
+        .then((products) => {
+            if (products.length < index) throw new Error('존재하지 않는 항목이에요!');
+            if (products.length === 0) throw new Error('장바구니가 비었습니다!!');
+            productName = products[index - 1].productName;
+            bot.api.users.info({
+                user: message.user
+            }, function (err, info) {
+                if (err) throw new Error('오류가 발생했어요!');
+
+                return Product.findOneAndUpdate({
+                    "_id": products[index - 1]._id
+                }, {
+                    $set: {
+                        isBuyed: true,
+                        buyedAt: Date.now(),
+                        buyer: info.user.name
+                    }
+                }).exec();
+            })
+
+        })
+        .then((product) => {
+            console.log(product);
+            bot.reply(message, index + ". " + productName + " 항목을 구매처리하였습니다.");
+        })
+        .catch((err) => {
+            console.log(err);
+            bot.reply(message, err.message);
+        });
+});
+
+controller.hears(["구매내역", /구매내역/mg], ["direct_message", "direct_mention", "mention"], function (bot, message) {
+    Product.findAllHistory()
+        .then((products) => {
+            if (products.length === 0) throw new Error('구매내역이 없습니다.');
+            const resMessage = {
+                attachments: []
+            };
+            for (var i = 0; i < products.length; i++) {
+                const item = {
+                    "text": `${products[i].buyer}님이 구매함`,
+                    "fallback": "Required plain-text summary of the attachment.",
+                    "color": getRandomColor(),
+                    "author_icon": "http://flickr.com/icons/bobby.jpg",
+                    "title": (i + 1) + ". " + products[i].productName,
+                    "title_link": products[i].productLink,
+                    "fields": [{
+                        "title": products[i].price,
+                        "short": false
+                    }],
+                    "thumb_url": products[i].image_url,
+                    "footer": products[i].mallName,
+                    "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png"
+                }
+                resMessage.attachments.push(item);
+                if (i === products.length - 1) {
+                    bot.reply(message, resMessage);
+                }
+            }
+        })
+});
+
+controller.hears(["선택장애"], ["direct_message", "direct_mention", "mention"], function (bot, message) {
+    bot.reply(message, `/poll "test" "item1" "item2"`);
+});
 
 function getRandomColor() {
     return '#' + Math.floor(Math.random() * 16777215).toString(16);;
