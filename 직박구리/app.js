@@ -1,7 +1,7 @@
 var Botkit = require('botkit');
 const client = require('./request/httpClient');
 const database = require('./database');
-
+const Product = require('./database/model/product');
 var controller = Botkit.slackbot();
 
 const log = {};
@@ -48,7 +48,7 @@ controller.hears(["더", "더 보여줘"], ["direct_message", "direct_mention", 
         bot.reply(message, err.message);
     }
 
-    shoppingSearch(encoded, index + 3, orderBy)
+    shoppingSearch(encoded, index + 3, 3, orderBy)
         .then(onRespond)
         .then(logging)
         .catch(onError);
@@ -59,8 +59,6 @@ controller.hears(['보여줘', '.+\s{0,10} 보여줘'], ["direct_message", "dire
     const keyword = message.text.substring(0, message.text.length - 3);
 
     const encoded = encodeURI(keyword);
-
-    console.log(log);
 
     const onRespond = (response) => {
         bot.reply(message, response);
@@ -78,24 +76,64 @@ controller.hears(['보여줘', '.+\s{0,10} 보여줘'], ["direct_message", "dire
         bot.reply(message, err.message);
     }
 
-    shoppingSearch(encoded, 1, 'sim')
+    shoppingSearch(encoded, 1, 3, 'sim')
         .then(onRespond)
         .then(logging)
         .catch(onError);
 
 });
 
-controller.hears(["덥다", "더워", "더워요"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
-    bot.reply(message, resMessage);
+controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+    const index = Number(message.text.split(" ")[0]);
+
+    if (isNaN(index)) return bot.reply(message, '수작부리지 마라');
+
+    if (typeof log[message.user] === "undefined") return bot.reply(message, '뭘 임마;;');
+
+    const past = log[message.user];
+
+    const keyword = past.keyword;
+    const orderBy = past.orderBy;
+
+    const encoded = encodeURI(keyword);
+
+    shoppingSearch(encoded, index, 1, orderBy)
+        .then((resMessage) => {
+            bot.api.users.info({
+                user: message.user
+            }, function (err, info) {
+                if (err) throw err;
+                console.log(resMessage.attachments[0].fields[0].title.split("원 ~ ")[0]);
+                const product = new Product({
+                    "productName": resMessage.attachments[0].title.substring(3),
+                    "productLink": resMessage.attachments[0].title_link,
+                    "productLprice": (resMessage.attachments[0].fields[0].title + "").split("원 ~ ")[0],
+                    "productHprice": (resMessage.attachments[0].fields[0].title + "").split("원 ~ ")[1].split("원")[0],
+                    "image_url": resMessage.attachments[0].image_url,
+                    "adderName": info.user.name
+                });
+                return product.save();
+            })
+        })
+        .then((product) => {
+            bot.reply(message, index + '번 추가 완료!');
+        })
+        .catch((err) => {
+            bot.reply(message, err.message);
+        })
 });
+
+
+
+
+
 
 function getRandomColor() {
     return '#' + Math.floor(Math.random() * 16777215).toString(16);;
 }
 
-function shoppingSearch(keyword, startIndex, orderBy) {
+function shoppingSearch(keyword, startIndex, display, orderBy) {
     return new Promise((resolve, reject) => {
-        console.log('/v1/search/shop.json?query=' + keyword + '&display=3&start=' + startIndex + '&sort=' + orderBy);
         client.request('/v1/search/shop.json?query=' + keyword + '&display=3&start=' + startIndex + '&sort=' + orderBy, (err, body) => {
             if (err) reject(new Error('오류발생! 삐용삐용!'));
 
@@ -118,7 +156,7 @@ function shoppingSearch(keyword, startIndex, orderBy) {
                 const item = {
                     "fallback": "Required plain-text summary of the attachment.",
                     "color": getRandomColor(),
-                    "title": result.items[i].title.replace("&lt;/b&gt;", ""),
+                    "title": (startIndex + i) + ". " + result.items[i].title.replace("&lt;/b&gt;", ""),
                     "title_link": result.items[i].link,
                     "fields": [{
                         "title": result.items[i].lprice + "원 ~ " + result.items[i].hprice + "원",
