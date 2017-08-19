@@ -103,20 +103,21 @@ controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["dir
                 user: message.user
             }, function (err, info) {
                 if (err) throw err;
-                console.log(resMessage.attachments[0].fields[0].title.split("원 ~ ")[0]);
-                const product = new Product({
-                    "productName": resMessage.attachments[0].title.substring(3),
-                    "productLink": resMessage.attachments[0].title_link,
-                    "productLprice": (resMessage.attachments[0].fields[0].title + "").split("원 ~ ")[0],
-                    "productHprice": (resMessage.attachments[0].fields[0].title + "").split("원 ~ ")[1].split("원")[0],
-                    "image_url": resMessage.attachments[0].image_url,
-                    "adderName": info.user.name
-                });
-                return product.save();
+
+                const productName = resMessage.attachments[0].title.substring(3);
+                const productLink = resMessage.attachments[0].title_link;
+                const price = resMessage.attachments[0].fields[0].title;
+                const mallName = resMessage.attachments[0].footer;
+                const image_url = resMessage.attachments[0].image_url;
+                const adderName = info.user.name;
+                Product.create(productName, price, mallName, productLink, adderName, image_url)
+                    .then((product) => {
+                        bot.reply(message, resMessage.attachments[0].title + ' -  추가 완료!');
+                    })
+                    .catch((err) => {
+                        bot.reply(message, '중복된 상품입니다.');
+                    })
             })
-        })
-        .then((product) => {
-            bot.reply(message, index + '번 추가 완료!');
         })
         .catch((err) => {
             bot.reply(message, err.message);
@@ -124,7 +125,36 @@ controller.hears(["장바구니 추가", /^\d+\s장바구니\s추가+/mg], ["dir
 });
 
 
-
+controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+    Product.findAll()
+        .then((products) => {
+            const resMessage = {
+                attachments: []
+            };
+            if (products.length === 0) return bot.reply(message, '장바구니가 비었습니다!!');
+            for (let i = 0; i < products.length; i++) {
+                const item = {
+                    "fallback": "Required plain-text summary of the attachment.",
+                    "color": getRandomColor(),
+                    "author_icon": "http://flickr.com/icons/bobby.jpg",
+                    "title": products[i].productName,
+                    "title_link": products[i].productLink,
+                    "fields": [{
+                        "title": products[i].price,
+                        "short": false
+                    }],
+                    "thumb_url": products[i].image_url,
+                    "footer": products[i].mallName,
+                    "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png"
+                }
+                resMessage.attachments.push(item);
+                if (i === products.length - 1) bot.reply(message, resMessage);
+            }
+        })
+        .catch((err) => {
+            bot.reply(message, '오류 발생 삐릿삐릿 ㅜㅜ');
+        })
+});
 
 
 
@@ -138,7 +168,7 @@ function shoppingSearch(keyword, startIndex, display, orderBy) {
             if (err) reject(new Error('오류발생! 삐용삐용!'));
 
             const result = JSON.parse(body);
-            console.log(result);
+
             if (typeof result.errorCode !== "undefined") reject(new Error('오류발생! 삐용삐용!'));
 
             if (result.items.length === 0) {
@@ -156,7 +186,7 @@ function shoppingSearch(keyword, startIndex, display, orderBy) {
                 const item = {
                     "fallback": "Required plain-text summary of the attachment.",
                     "color": getRandomColor(),
-                    "title": (startIndex + i) + ". " + result.items[i].title.replace("&lt;/b&gt;", ""),
+                    "title": (startIndex + i) + ". " + result.items[i].title.replace(/<b>/gi, '').replace(/<\/b>/gi, ''),
                     "title_link": result.items[i].link,
                     "fields": [{
                         "title": result.items[i].lprice + "원 ~ " + result.items[i].hprice + "원",
