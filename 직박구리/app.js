@@ -146,6 +146,7 @@ controller.hears(["항목 삭제", /^\d+\s항목\s삭제+/mg], ["direct_message"
             }).exec();
         })
         .then((product) => {
+            if(product === null) bot.reply(message, '존재하지 않는 항목이에요!');
             bot.reply(message, index + ". " + product.productName + " 항목이 삭제되었습니다.");
         })
         .catch((err) => {
