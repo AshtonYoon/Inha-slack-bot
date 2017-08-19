@@ -14,89 +14,56 @@ bot.startRTM(function(err,bot,payload) {
     } 
 }); 
 
-controller.hears(["바지", '*바지*'],["direct_message","direct_mention","mention","ambient"], function(bot,message) {
-    var resMessage = {
-    "text": "{0}개의 결과가 검색되었습니다",
-    "attachments": [
-        {
-            "fields": [
-                {
-                    "title": "상품 이름",
-                    "short": true
-                },
-                {
-                    "title": "가격",
-                    "short": true
-                }
-            ],
-            "image_url": "http://shopping.phinf.naver.net/main_1176561/11765612239.20170624195605.jpg?type=f140"
-        },
-        {
-            "fallback": "Would you recommend it to customers?",
-            "title": "장바구니에 담으시겠습니까?",
-            "callback_id": "comic_1234_xyz",
-            "color": "#9AA3E3",
-            "attachment_type": "default",
-            "actions": [
-                {
-                    "name": "recommend",
-                    "text": "담기",
-                    "type": "button",
-                    "value": "recommend"
-                },
-                {
-                    "name": "no",
-                    "text": "취소",
-                    "type": "button",
-                    "value": "bad"
-                }
-            ]
-        }
-    ]
-}; 
+controller.hears(["바지"],["direct_message","direct_mention","mention","ambient"], function(bot,message) {
+     
     bot.reply(message,resMessage); 
 });
 
-controller.hears(['question me'], 'message_received', function(bot,message) {
+controller.hears(['보여줘', '.+\s{0,10}보여줘'], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+    const name = message.text.substring(0, message.text.length - 3);
+    console.log(name);
+    const encoded = encodeURI(name);
+    client.request('/v1/search/shop.json?query=' + encoded + '&display=10&start=1&sort=date', (err, body) => {
+        if (err) throw err;
 
-  // start a conversation to handle this response.
-  bot.startConversation(message,function(err,convo) {
-
-    convo.addQuestion('Shall we proceed Say YES, NO or DONE to quit.',[
-      {
-        pattern: 'done',
-        callback: function(response,convo) {
-          convo.say('OK you are done!');
-          convo.next();
-        }
-      },
-      {
-        pattern: bot.utterances.yes,
-        callback: function(response,convo) {
-          convo.say('Great! I will continue...');
-          // do something else...
-          convo.next();
-
-        }
-      },
-      {
-        pattern: bot.utterances.no,
-        callback: function(response,convo) {
-          convo.say('Perhaps later.');
-          // do something else...
-          convo.next();
-        }
-      },
-      {
-        default: true,
-        callback: function(response,convo) {
-          // just repeat the question
-          convo.repeat();
-          convo.next();
-        }
-      }
-    ],{},'default');
-
-  })
-
+        var resMessage = {
+            "text": body.Total + "개의 결과가 검색되었습니다",
+            "attachments": [
+                {
+                    "fields": [
+                        {
+                            "title": body.items.title,
+                            "short": true
+                        },
+                        {
+                            "title": body.items.hprice,
+                            "short": true
+                        }
+                    ],
+                    "image_url": body.items.image
+                },
+                {
+                    "fallback": "Would you recommend it to customers?",
+                    "title": "장바구니에 담으시겠습니까?",
+                    "callback_id": "comic_1234_xyz",
+                    "color": "#9AA3E3",
+                    "attachment_type": "default",
+                    "actions": [
+                        {
+                            "name": "add",
+                            "text": "담기",
+                            "type": "button",
+                            "value": "add"
+                        },
+                        {
+                            "name": "cancel",
+                            "text": "취소",
+                            "type": "button",
+                            "value": "cancel"
+                        }
+                    ]
+                }
+            ]
+        };
+    });
 });
