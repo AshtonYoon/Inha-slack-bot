@@ -1,66 +1,40 @@
 var Botkit = require('botkit');
+const client = require('./request/httpClient');
 
 var controller = Botkit.slackbot();
-var key = "epKApMTcjyqeXUnl9ikCX6MS-650511922822-bxox";
-var bot = controller.spawn({ token: reverseString(key)});
+
+const log = {
+
+}
+var bot = controller.spawn({
+    token: reverseString('rJNds4poZpAjglzYx7TlOVCo-986652553822-bxox')
+});
 
 function reverseString(str) {
     return str.split("").reverse().join("");
 }
 
-bot.startRTM(function(err,bot,payload) {
-    if (err) { 
-         throw new Error('Could not connect to Slack'); 
-    } 
-}); 
-
-controller.hears(["Hello","Hi"],["direct_message","direct_mention","mention","ambient"], function(bot,message) { 
-    bot.reply(message,'Hello, how are you today?'); 
+bot.startRTM(function (err, bot, payload) {
+    if (err) {
+        throw new Error('Could not connect to Slack');
+    }
 });
 
-controller.hears(["바지 보여줘"],["direct_message","direct_mention","mention","ambient"], function(bot,message) {
-    var resMessage = {
-    "text": "{0}개의 결과가 검색되었습니다",
-    "attachments": [
-        {
-            "fields": [
-                {
-                    "title": "상품 이름",
-                    "short": true
-                },
-                {
-                    "title": "가격",
-                    "short": true
-                }
-            ],
-            "image_url": "http://shopping.phinf.naver.net/main_1176561/11765612239.20170624195605.jpg?type=f140"
-        },
-        {
-            "fallback": "Would you recommend it to customers?",
-            "title": "장바구니에 담으시겠습니까?",
-            "callback_id": "comic_1234_xyz",
-            "color": "#9AA3E3",
-            "attachment_type": "default",
-            "actions": [
-                {
-                    "name": "recommend",
-                    "text": "담기",
-                    "type": "button",
-                    "value": "recommend"
-                },
-                {
-                    "name": "no",
-                    "text": "취소",
-                    "type": "button",
-                    "value": "bad"
-                }
-            ]
-        }
-    ]
-}; 
-    bot.reply(message,resMessage); 
+controller.hears(["Hello", "Hi"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+    bot.reply(message, 'Hello, how are you today?');
 });
 
-controller.hears(["덥다","더워","더워요"],["direct_message","direct_mention","mention","ambient"],function(bot,message) { 
-    bot.reply(message,'진짜 더워요'); 
+controller.hears(['보여줘', '.+\s{0,10}보여줘'], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+
+    const name = message.text.substring(0, message.text.length - 3);
+    console.log(name);
+    const encoded = encodeURI(name);
+    client.request('/v1/search/shop.json?query=' + encoded + '&display=10&start=1&sort=date', (err, body) => {
+        if (err) throw err;
+        console.log(body);
+    });
+});
+
+controller.hears(["덥다", "더워", "더워요"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
+    bot.reply(message, resMessage);
 });
