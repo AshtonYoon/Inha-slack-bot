@@ -14,11 +14,7 @@ bot.startRTM(function(err,bot,payload) {
     } 
 }); 
 
-controller.hears(["Hello","Hi"],["direct_message","direct_mention","mention","ambient"], function(bot,message) { 
-    bot.reply(message,'Hello, how are you today?'); 
-});
-
-controller.hears(["바지 보여줘"],["direct_message","direct_mention","mention","ambient"], function(bot,message) {
+controller.hears(["바지", '*바지*'],["direct_message","direct_mention","mention","ambient"], function(bot,message) {
     var resMessage = {
     "text": "{0}개의 결과가 검색되었습니다",
     "attachments": [
@@ -61,6 +57,46 @@ controller.hears(["바지 보여줘"],["direct_message","direct_mention","mentio
     bot.reply(message,resMessage); 
 });
 
-controller.hears(["덥다","더워","더워요"],["direct_message","direct_mention","mention","ambient"],function(bot,message) { 
-    bot.reply(message,'진짜 더워요'); 
+controller.hears(['question me'], 'message_received', function(bot,message) {
+
+  // start a conversation to handle this response.
+  bot.startConversation(message,function(err,convo) {
+
+    convo.addQuestion('Shall we proceed Say YES, NO or DONE to quit.',[
+      {
+        pattern: 'done',
+        callback: function(response,convo) {
+          convo.say('OK you are done!');
+          convo.next();
+        }
+      },
+      {
+        pattern: bot.utterances.yes,
+        callback: function(response,convo) {
+          convo.say('Great! I will continue...');
+          // do something else...
+          convo.next();
+
+        }
+      },
+      {
+        pattern: bot.utterances.no,
+        callback: function(response,convo) {
+          convo.say('Perhaps later.');
+          // do something else...
+          convo.next();
+        }
+      },
+      {
+        default: true,
+        callback: function(response,convo) {
+          // just repeat the question
+          convo.repeat();
+          convo.next();
+        }
+      }
+    ],{},'default');
+
+  })
+
 });
