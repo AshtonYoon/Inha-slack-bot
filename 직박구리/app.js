@@ -20,65 +20,120 @@ bot.startRTM(function (err, bot, payload) {
 });
 
 controller.hears(["더", "더 보여줘"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
-    
+    if (typeof log[message.user] === "undefined") return bot.reply(message, '니가 뭘 검색했는데;;');
+
+    const index = log[message.user].index;
+    const keyword = log[message.user].keyword;
+    const orderBy = log[message.user].orderBy;
+
+    const encoded = encodeURI(keyword);
+
+    const onRespond = (response) => {
+        bot.reply(message, response);
+        return;
+    }
+
+    const logging = () => {
+        log[message.user] = {
+            "keyword": keyword,
+            "index": index + 3,
+            "orderBy": orderBy // 나중에 유동적으로 바뀌어야함
+        }
+    }
+    const onError = (err) => {
+        bot.reply(message, err.message);
+    }
+
+    shoppingSearch(encoded, index + 3, orderBy)
+        .then(onRespond)
+        .then(logging)
+        .catch(onError);
 });
 
 controller.hears(['보여줘', '.+\s{0,10} 보여줘'], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
 
-    const name = message.text.substring(0, message.text.length - 3);
+    const keyword = message.text.substring(0, message.text.length - 3);
 
-    const encoded = encodeURI(name);
+    const encoded = encodeURI(keyword);
 
-    client.request('/v1/search/shop.json?query=' + encoded + '&display=3&start=1&sort=sim', (err, body) => {
-        if (err) return bot.reply(message, "응~ 지랄마~");
+    console.log(log);
 
-        const result = JSON.parse(body);
+    const onRespond = (response) => {
+        bot.reply(message, response);
+        return;
+    }
 
-        if (typeof result.errorCode !== "undefined") return bot.reply(message, "응~ 지랄마~");
-
-        if (result.items.length === 0) return bot.reply(message, "검색 결과가 없습니다.");
-
-        var resMessage = {
-            "text": result.total + "개의 결과가 검색되었습니다",
-            "attachments": []
+    const logging = () => {
+        log[message.user] = {
+            "keyword": keyword,
+            "index": 1,
+            "orderBy": 'sim' // 나중에 유동적으로 바뀌어야함
         }
+    }
+    const onError = (err) => {
+        bot.reply(message, err.message);
+    }
 
-        if (err) return bot.reply(message, "응~ 지랄마~");
+    shoppingSearch(encoded, 1, 'sim')
+        .then(onRespond)
+        .then(logging)
+        .catch(onError);
 
-        for (let i = 0; i < result.items.length; i++) {
-            const item = {
-                "fallback": "Required plain-text summary of the attachment.",
-                "color": "#36a64f",
-                "title": result.items[i].title.replace("&lt;/b&gt;", ""),
-                "title_link": result.items[i].link,
-                "fields": [{
-                    "title": result.items[i].lprice + "원",
-                    "short": true
-                }],
-                "image_url": result.items[i].image,
-                "footer": result.items[i].mallName,
-                "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png"
-            }
-
-            resMessage.attachments.push(item);
-
-            if (i == result.items.length - 1) {
-                log[message.user] = {
-                    "name": name,
-                    "index": 3
-                };
-                console.log(log);
-                return bot.reply(message, resMessage);
-            }
-        }
-    });
 });
 
 controller.hears(["덥다", "더워", "더워요"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
     bot.reply(message, resMessage);
 });
 
+function getRandomColor() {
+    return '#' + Math.floor(Math.random() * 16777215).toString(16);;
+}
 
+function shoppingSearch(keyword, startIndex, orderBy) {
+    return new Promise((resolve, reject) => {
+        console.log('/v1/search/shop.json?query=' + keyword + '&display=3&start=' + startIndex + '&sort=' + orderBy);
+        client.request('/v1/search/shop.json?query=' + keyword + '&display=3&start=' + startIndex + '&sort=' + orderBy, (err, body) => {
+            if (err) reject(new Error('오류발생! 삐용삐용!'));
+
+            const result = JSON.parse(body);
+            console.log(result);
+            if (typeof result.errorCode !== "undefined") reject(new Error('오류발생! 삐용삐용!'));
+
+            if (result.items.length === 0) {
+                reject(new Error('검색 결과 없쪄연!!'));
+            }
+
+            var resMessage = {
+                "text": result.total + "개의 결과가 검색되었습니다",
+                "attachments": []
+            }
+
+            if (err) reject(new Error('오류발생! 삐용삐용!'));
+
+            for (let i = 0; i < result.items.length; i++) {
+                const item = {
+                    "fallback": "Required plain-text summary of the attachment.",
+                    "color": getRandomColor(),
+                    "title": result.items[i].title.replace("&lt;/b&gt;", ""),
+                    "title_link": result.items[i].link,
+                    "fields": [{
+                        "title": result.items[i].lprice + "원",
+                        "short": true
+                    }],
+                    "image_url": result.items[i].image,
+                    "footer": result.items[i].mallName,
+                    "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png"
+                }
+
+                resMessage.attachments.push(item);
+
+                if (i == result.items.length - 1) {
+                    resolve(resMessage);
+                }
+            }
+        });
+    })
+}
 /*
 원태형 죄송해요.. 구현해야한다는 압박감에 못이겨 그만..
 */
