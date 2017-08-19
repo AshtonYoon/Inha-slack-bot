@@ -1,5 +1,6 @@
 var Botkit = require('botkit');
 const client = require('./request/httpClient');
+var commands = initialCommand();
 
 var controller = Botkit.slackbot();
 
@@ -137,3 +138,22 @@ function shoppingSearch(keyword, startIndex, orderBy) {
 /*
 원태형 죄송해요.. 구현해야한다는 압박감에 못이겨 그만..
 */
+
+function initialCommand() {
+    commands = require('./config/asc.config').values;
+    commands = commands.concat(require('./config/dsc.config').values);
+    // commands.concat(require('./config/sim.config').values);
+    // commands.concat(require('./config/date.config').values);
+
+    var regex = '(.{0,10})(';
+    commands.forEach(function(element) {
+        regex += element + '|';
+    }, this);
+    regex = regex.slice(0, -1);
+    regex += ')\\s(.{0,10})(보여줘)';
+    regex = new RegExp(regex);
+    
+    // 사용 예
+    // const testRegex = require('./TestRegex/regex');
+    // testRegex.getTokens('싼순서로 김치 보여줘', regex);
+}
