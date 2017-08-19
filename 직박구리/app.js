@@ -1,5 +1,6 @@
 var Botkit = require('botkit');
 const client = require('./request/httpClient');
+const database = require('./database');
 
 var controller = Botkit.slackbot();
 
@@ -15,8 +16,11 @@ function reverseString(str) {
 
 bot.startRTM(function (err, bot, payload) {
     if (err) {
+        console.log(err);
         throw new Error('Could not connect to Slack');
     }
+
+    database.connect();
 });
 
 controller.hears(["더", "더 보여줘"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
@@ -117,7 +121,7 @@ function shoppingSearch(keyword, startIndex, orderBy) {
                     "title": result.items[i].title.replace("&lt;/b&gt;", ""),
                     "title_link": result.items[i].link,
                     "fields": [{
-                        "title": result.items[i].lprice + "원",
+                        "title": result.items[i].lprice + "원 ~ " + result.items[i].hprice + "원",
                         "short": true
                     }],
                     "image_url": result.items[i].image,
