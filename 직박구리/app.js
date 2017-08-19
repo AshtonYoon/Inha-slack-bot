@@ -141,16 +141,16 @@ controller.hears(["항목 삭제", /^\d+\s항목\s삭제+/mg], ["direct_message"
 
     Product.findAll()
         .then((products) => {
+            if (products.length < index) throw new Error('존재하지 않는 항목이에요!');
             return Product.findByIdAndRemove({
                 "_id": products[index - 1]._id
             }).exec();
         })
         .then((product) => {
-            if(product === null) bot.reply(message, '존재하지 않는 항목이에요!');
             bot.reply(message, index + ". " + product.productName + " 항목이 삭제되었습니다.");
         })
         .catch((err) => {
-            bot.reply(message, '오류 발생 삐용삐용~!!');
+            bot.reply(message, err.message);
         });
 })
 controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention", "ambient"], function (bot, message) {
@@ -159,6 +159,7 @@ controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention
             const resMessage = {
                 attachments: []
             };
+            const totals = [0, 0, 0];
             if (products.length === 0) return bot.reply(message, '장바구니가 비었습니다!!');
             for (let i = 0; i < products.length; i++) {
                 const item = {
@@ -175,8 +176,21 @@ controller.hears(["장바구니"], ["direct_message", "direct_mention", "mention
                     "footer": products[i].mallName,
                     "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png"
                 }
+                const lprice = Number(products[i].price.replace(/\,/g, '').split('원 ~ ')[0]);
+                const hprice = Number(products[i].price.replace(/\,/g, '').split('원 ~ ')[1].split('원')[0]);
+                
+                totals[0] += lprice;
+                totals[1] += (lprice + hprice) / 2.0;
+                totals[2] += hprice;
+
                 resMessage.attachments.push(item);
-                if (i === products.length - 1) bot.reply(message, resMessage);
+                if (i === products.length - 1) {
+                    bot.reply(message, resMessage);
+                    bot.reply(message, {
+                        "text": "`최저가` *" + numberWithCommas(totals[0]) + "원*\n `평균가` *" + numberWithCommas(totals[1]) + "원*\n `최고가` *" + numberWithCommas(totals[2]) + "원*\n",
+                        "mrkdwn": true
+                    })
+                }
             }
         })
         .catch((err) => {
@@ -217,7 +231,7 @@ function shoppingSearch(keyword, startIndex, display, orderBy) {
                     "title": (startIndex + i) + ". " + result.items[i].title.replace(/<b>/gi, '').replace(/<\/b>/gi, ''),
                     "title_link": result.items[i].link,
                     "fields": [{
-                        "title": result.items[i].lprice + "원 ~ " + result.items[i].hprice + "원",
+                        "title": numberWithCommas(result.items[i].lprice) + "원 ~ " + numberWithCommas(result.items[i].hprice) + "원",
                         "short": true
                     }],
                     "image_url": result.items[i].image,
@@ -256,4 +270,8 @@ function initialCommand() {
     // const testRegex = require('./regexes/regex');
 
     // return testRegex.getTokens('싼순서로 김치 보여줘', c);
+}
+
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
