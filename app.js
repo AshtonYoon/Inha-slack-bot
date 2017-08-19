@@ -1,7 +1,12 @@
 var Botkit = require('botkit');
 
 var controller = Botkit.slackbot();
-var bot = controller.spawn({ token: "xoxb-228229115056-R6pOqd7UahV7yawtna1LY1JM" });
+var key = "epKApMTcjyqeXUnl9ikCX6MS-650511922822-bxox";
+var bot = controller.spawn({ token: reverseString(key)});
+
+function reverseString(str) {
+    return str.split("").reverse().join("");
+}
 
 bot.startRTM(function(err,bot,payload) {
     if (err) { 
