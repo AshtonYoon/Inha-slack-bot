@@ -3,8 +3,8 @@ const req = require('request');
 const naverAPIUri = 'https://openapi.naver.com'
 
 const headers = {
-    'X-Naver-Client-Id': 'PR5EBETH6ZB5h5HgnY2F',
-    'X-Naver-Client-Secret': 'KzfIqtBspr'
+    'X-Naver-Client-Id': '',
+    'X-Naver-Client-Secret': ''
 }
 
 exports.request = (uri, callback) => {
