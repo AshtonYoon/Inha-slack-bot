@@ -1,6 +1,4 @@
 var Botkit = require('botkit');
-<<<<<<< HEAD
-<<<<<<< HEAD
 const client = require('./request/httpClient');
 const database = require('./database');
 const Product = require('./database/model/product');
@@ -15,24 +13,11 @@ const log = {};
 var bot = controller.spawn({
     token: reverseString('rJNds4poZpAjglzYx7TlOVCo-986652553822-bxox')
 });
-=======
-=======
->>>>>>> master
-
-var controller = Botkit.slackbot();
-var key = "epKApMTcjyqeXUnl9ikCX6MS-650511922822-bxox";
-var bot = controller.spawn({ token: reverseString(key)});
-<<<<<<< HEAD
->>>>>>> master
-=======
->>>>>>> master
 
 function reverseString(str) {
     return str.split("").reverse().join("");
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 bot.startRTM(function (err, bot, payload) {
     if (err) {
         console.log(err);
@@ -392,9 +377,7 @@ function sweet(bot, message, code, invoice) {
         })
     })
 }
-=======
-=======
->>>>>>> master
+
 bot.startRTM(function(err,bot,payload) {
     if (err) { 
          throw new Error('Could not connect to Slack'); 
@@ -450,9 +433,4 @@ controller.hears(["바지 보여줘"],["direct_message","direct_mention","mentio
 
 controller.hears(["덥다","더워","더워요"],["direct_message","direct_mention","mention","ambient"],function(bot,message) { 
     bot.reply(message,'진짜 더워요'); 
-<<<<<<< HEAD
 });
->>>>>>> master
-=======
-});
->>>>>>> master
