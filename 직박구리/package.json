@@ -18,7 +18,11 @@
   },
   "homepage": "https://github.com/AshtonYoon/Inha-slack-bot#readme",
   "dependencies": {
+<<<<<<< HEAD
     "botkit": "^0.5.7",
     "mongoose": "^4.11.7"
+=======
+    "botkit": "^0.5.7"
+>>>>>>> master
   }
 }
