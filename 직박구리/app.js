@@ -2,7 +2,7 @@ var Botkit = require('botkit');
 const client = require('./request/httpClient');
 const database = require('./database');
 const Product = require('./database/model/product');
-
+const req = require('request');
 const regex = initialCommand();
 const regexTest = require('./regexes/regex');
 
@@ -268,8 +268,8 @@ controller.hears(["구매내역", /구매내역/mg], ["direct_message", "direct_
         })
 });
 
-controller.hears(["선택장애"], ["direct_message", "direct_mention", "mention"], function (bot, message) {
-    bot.reply(message, `/poll "test" "item1" "item2"`);
+controller.hears(["배송추적", /^배송추적/], ["direct_message", "direct_mention", "mention"], function (bot, message) {
+    sweet(bot, message, message.text.split(' ')[1], message.text.split(' ')[2]);
 });
 
 function getRandomColor() {
@@ -335,8 +335,9 @@ function initialCommand() {
         regex += element + '|';
     }, this);
     regex = regex.slice(0, -1);
-    regex += ')\\s(.{0,10})(보여줘)';
+    regex += ')\\s(.{0,10})(보여|찾아|검색|보자|찾자)';
     regex = new RegExp(regex);
+    console.log(regex);
     return regex
     // // 사용 예
     // const testRegex = require('./regexes/regex');
@@ -346,4 +347,33 @@ function initialCommand() {
 
 function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function sweet(bot, message, code, invoice) {
+    req.get({
+        "uri": `http://info.sweettracker.co.kr/api/v1/trackingInfo?t_key=X2CXrFes215oM4fQHMD6eQ&t_code=${code}&t_invoice=${invoice}`
+    }, function (err, res, body) {
+        const result = JSON.parse(body);
+        bot.reply(message, {
+            "attachments": [{
+                "color": "#36a64f",
+                "pretext": `${result.itemName}에 대한 정보는 다음과 같습니다`,
+                "author_name": `${result.invoiceNo}`,
+                "author_link": "http://flickr.com/bobby/",
+                "author_icon": "http://flickr.com/icons/bobby.jpg",
+                "title": `${result.itemName}`,
+                "title_link": "https://api.slack.com/",
+                "text": `${result.estimate}`,
+                "fields": [{
+                    "title": "현재진행단계",
+                    "value": `${result.level}`,
+                    "short": false
+                }],
+                "thumb_url": `${result.itemImage}`,
+                "footer": "Slack API",
+                "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
+                "ts": 123456789
+            }]
+        })
+    })
 }
