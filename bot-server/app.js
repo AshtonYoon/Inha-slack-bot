@@ -359,7 +359,7 @@ function sweet(bot, message, code, invoice) {
         const result = JSON.parse(body);
         bot.reply(message, {
             "attachments": [{
-                "color": "#36a64f",
+                "color": getRandomColor(),
                 "pretext": `${result.itemName}에 대한 정보는 다음과 같습니다`,
                 "author_name": `${result.invoiceNo}`,
                 "author_link": "http://flickr.com/bobby/",
